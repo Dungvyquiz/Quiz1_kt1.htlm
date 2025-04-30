@@ -1,0 +1,948 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ôn Thi Kinh Thánh I - Đề 1</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border: 2px solid #007bff;
+        }
+        h1 {
+            color: #007bff;
+        }
+        .instructions {
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+        .start-btn, .nav-btn, .submit-btn, .back-btn {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .start-btn {
+            background-color: #007bff;
+            color: white;
+        }
+        .nav-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .submit-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .back-btn {
+            background-color: #6c757d;
+            color: white;
+        }
+        .nav-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: red;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .question {
+            margin: 20px 0;
+        }
+        .options label {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .options input {
+            margin-right: 10px;
+        }
+        .scripture {
+            background: #e9ecef;
+            padding: 10px;
+            margin: 10px 0;
+            font-style: italic;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        .correct {
+            color: green;
+        }
+        .incorrect {
+            color: red;
+        }
+        .not-answered {
+            color: orange;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="startScreen">
+        <h1>ÔN THI KINH THÁNH I</h1>
+        <h2>Đề 1</h2>
+        <p>Thời gian làm bài: 45 phút</p>
+        <p class="instructions">Em hãy đọc kỹ nội dung và chọn đáp án mà em cho là đúng nhất</p>
+        <button class="start-btn" onclick="startQuiz()">Bắt đầu</button>
+    </div>
+
+    <div class="container" id="questionScreen" style="display: none;">
+        <h1>Đề 1</h1>
+        <div class="timer" id="timer">45:00</div>
+        <div id="scriptureText" class="scripture" style="display: none;"></div>
+        <div class="question" id="questionText"></div>
+        <div class="options" id="options"></div>
+        <button class="nav-btn" id="prevBtn" onclick="prevQuestion()" disabled>Câu trước</button>
+        <button class="nav-btn" id="nextBtn" onclick="nextQuestion()">Câu tiếp theo</button>
+        <button class="submit-btn" id="submitBtn" onclick="submitQuiz()" style="display: none;">Nộp bài</button>
+    </div>
+
+    <div class="container" id="resultScreen" style="display: none;">
+        <h1>Kết quả bài kiểm tra</h1>
+        <h2 id="score"></h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Câu</th>
+                    <th>Câu hỏi</th>
+                    <th>Đáp án của bạn</th>
+                    <th>Đáp án đúng</th>
+                    <th>Giải thích</th>
+                </tr>
+            </thead>
+            <tbody id="resultsTable"></tbody>
+        </table>
+        <button class="back-btn" onclick="backToStart()">Quay lại trang đầu</button>
+    </div>
+
+    <script>
+        // Sample question bank (40 questions based on provided documents)
+        const questionBank = [
+            // Part A: Biblical Textbook (Questions 1-25, randomized)
+            {
+                id: 1,
+                part: 'A',
+                type: 'true_false',
+                question: 'Khi nhìn ngắm vũ trụ thiên nhiên và lắng nghe tiếng lương tâm nơi mình, ta có thể nhận biết có Thiên Chúa.',
+                options: ['Đúng', 'Sai'],
+                correct: 'Đúng',
+                explanation: 'Lý trí con người có thể nhận ra sự hiện hữu của Thiên Chúa qua thiên nhiên và lương tâm (Bài 1).',
+                bloom: 'Recognizing',
+                cefr: 'A2'
+            },
+            {
+                id: 2,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Thiên Chúa dùng lời nói và hành động, tỏ mình dần dần cho con người qua từng giai đoạn trong lịch sử cứu độ:',
+                options: [
+                    'Từ tổ tông loài người đến No-ê, Áp-ra-ham, Mô-sê, các ngôn sứ',
+                    'Từ Mô-sê đến vua Đa-vít',
+                    'Thiên Chúa đã nói tất cả nơi Con Một Ngài là Chúa Giê-su Ki-tô',
+                    'Câu a và c đúng'
+                ],
+                correct: 'Câu a và c đúng',
+                explanation: 'Thiên Chúa tỏ mình qua các giai đoạn lịch sử cứu độ, và mặc khải trọn vẹn nơi Chúa Giê-su (Bài 1).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 3,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Những điều Thiên Chúa tỏ cho ta biết về Ngài và về chương trình yêu thương của Ngài đối với loài người chúng ta được gọi là:',
+                options: ['linh hứng', 'mặc khải', 'thánh truyền', 'lịch sử cứu độ'],
+                correct: 'mặc khải',
+                explanation: 'Mặc khải là những gì Thiên Chúa tỏ lộ về Ngài và kế hoạch cứu độ (Bài 1).',
+                bloom: 'Recognizing',
+                cefr: 'A2'
+            },
+            {
+                id: 4,
+                part: 'A',
+                type: 'fill_in_the_blank',
+                question: 'Mặc khải được Thiên Chúa trao cho …….. để gìn giữ và thông truyền lại cho các thế hệ qua hai con đường: …… và Thánh Kinh.',
+                options: [
+                    'Hội Thánh / Thánh Truyền',
+                    'Đức Giáo Hoàng / Phụng vụ',
+                    'Hội Thánh / Phụng vụ',
+                    'Các Giám mục và linh mục / Truyền giáo'
+                ],
+                correct: 'Hội Thánh / Thánh Truyền',
+                explanation: 'Hội Thánh được giao nhiệm vụ gìn giữ mặc khải qua Thánh Truyền và Thánh Kinh (Bài 1).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 5,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Cựu Ước gồm ……. cuốn, nói về ... của Thiên Chúa và những gì Ngài đã thực hiện trong lịch sử ….... để dọn đường cho Đấng Cứu Thế …...',
+                options: [
+                    '44 / tình thương / nhân loại / trở lại',
+                    '45 / Giao Ước / Hội Thánh / quang lâm',
+                    '46 / lời hứa cứu độ / dân Do Thái / ra đời',
+                    '47 / sự tha thứ / Ai Cập / tỏ hiện'
+                ],
+                correct: '46 / lời hứa cứu độ / dân Do Thái / ra đời',
+                explanation: 'Cựu Ước gồm 46 cuốn, chuẩn bị cho Đấng Cứu Thế qua lịch sử dân Do Thái (Bài 3).',
+                bloom: 'Recognizing',
+                cefr: 'A2'
+            },
+            {
+                id: 6,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Tâm điểm của Kinh Thánh là …..., nói về cuộc đời và lời dạy của',
+                options: [
+                    'sách Tông đồ Công vụ / Hội Thánh thuở ban đầu',
+                    'các thư Phao-lô / Chúa Giê-su',
+                    'sách Khải huyền / thánh Gio-an',
+                    '4 sách Tin Mừng / Chúa Giê-su'
+                ],
+                correct: '4 sách Tin Mừng / Chúa Giê-su',
+                explanation: 'Bốn sách Tin Mừng là tâm điểm, kể về cuộc đời và lời dạy của Chúa Giê-su (Bài 2).',
+                bloom: 'Recognizing',
+                cefr: 'A2'
+            },
+            {
+                id: 7,
+                part: 'A',
+                type: 'true_false',
+                question: 'Vũ trụ của chúng ta tự nhiên mà có chứ không phải do Thiên Chúa đã dùng Lời quyền năng của Ngài mà sáng tạo từ hư không.',
+                options: ['Đúng', 'Sai'],
+                correct: 'Sai',
+                explanation: 'Thiên Chúa sáng tạo vũ trụ từ hư không bằng Lời quyền năng (Bài 4).',
+                bloom: 'Recognizing',
+                cefr: 'A2'
+            },
+            {
+                id: 8,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Vũ trụ này được Thiên Chúa dựng nên cho con người, còn con người được dựng nên để …... hầu ở trần gian, họ dâng lên Thiên Chúa ... mà tạ ơn Ngài, và mai sau được sống hạnh phúc với Ngài mãi mãi trên thiên đàng.',
+                options: [
+                    'làm bá chủ mọi loài mọi vật / các lời kinh',
+                    'xây dựng một thế giới ấm no hạnh phúc / lời ca tụng',
+                    'nhận biết, phục vụ và yêu mến Thiên Chúa / mọi thụ tạo',
+                    'thống trị thế giới / những thành quả khoa học kỹ thuật'
+                ],
+                correct: 'nhận biết, phục vụ và yêu mến Thiên Chúa / mọi thụ tạo',
+                explanation: 'Con người được tạo dựng để yêu mến và phục vụ Thiên Chúa (Bài 5).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 9,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Vì sao ta cần cảm tạ Thiên Chúa mỗi ngày?',
+                options: [
+                    'Vì tất cả những gì ta đang có đều là quà tặng của Thiên Chúa: ánh sáng, khí trời, nước uống, cơm ăn, áo mặc, nhà ở, các tiện nghi',
+                    'Vì ta được sinh ra làm người',
+                    'Vì ta được phúc làm con cái Thiên Chúa trong Hội Thánh',
+                    'Cả ba câu a, b, c đều đúng'
+                ],
+                correct: 'Cả ba câu a, b, c đều đúng',
+                explanation: 'Tất cả những lý do trên đều là lý do để cảm tạ Thiên Chúa (Bài 7).',
+                bloom: 'Applying',
+                cefr: 'B2'
+            },
+            {
+                id: 10,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Thiên Chúa dựng nên con người để sống hạnh phúc với Ngài mãi mãi. Thế nhưng tại sao trong cuộc sống con người gặp biết bao đau khổ, lầm than và cuối cùng là phải chết?',
+                options: [
+                    'Vì tổ tông sa ngã phạm tội khiến cho tội lỗi và sự chết tràn vào',
+                    'Vì con người được dựng nên từ bụi đất nên cuối cùng phải chết',
+                    'Vì đó là định luật mà Thiên Chúa đã an bài cho con người',
+                    'Vì con người không chịu tu luyện để đạt tới mức siêu thoát'
+                ],
+                correct: 'Vì tổ tông sa ngã phạm tội khiến cho tội lỗi và sự chết tràn vào',
+                explanation: 'Tội tổ tông dẫn đến đau khổ và sự chết (Bài 8).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 11,
+                part: 'A',
+                type: 'true_false',
+                question: 'Khi giao cho mỗi người chúng ta những nén bạc là những năng khiếu, những hạt giống tài năng, những hoàn cảnh thuận lợi, v.v... Thiên Chúa đòi mọi người phải sinh lời những nén bạc đó như nhau.',
+                options: ['Đúng', 'Sai'],
+                correct: 'Sai',
+                explanation: 'Thiên Chúa mong mỗi người sinh lời theo khả năng riêng (Bài 7).',
+                bloom: 'Reasoning',
+                cefr: 'B1'
+            },
+            {
+                id: 12,
+                part: 'A',
+                type: 'fill_in_the_blank',
+                question: 'Lịch sử Dân Chúa thời Cựu Ước được chia thành 8 thời kỳ: thời các tổ phụ, thời Xuất hành, thời các Thủ lãnh, thời quân chủ, …..., thời hồi hương và lệ thuộc đế quốc Ba Tư, thời …...., thời đế quốc Rô-ma đô hộ và Chúa Giê-su sinh ra.',
+                options: [
+                    'thời bị lưu đày / đế quốc Ba-by-lon đô hộ',
+                    'thời đất nước chia đôi và bị lưu đày / đế quốc Hy Lạp đô hộ',
+                    'thời bị nô lệ bên Ai Cập / vua Hê-rô-đê',
+                    'thời đất nước chia đôi / thời giành được độc lập'
+                ],
+                correct: 'thời đất nước chia đôi và bị lưu đày / đế quốc Hy Lạp đô hộ',
+                explanation: 'Lịch sử Dân Chúa có 8 thời kỳ, bao gồm thời chia đôi và Hy Lạp đô hộ (Bài 10).',
+                bloom: 'Recognizing',
+                cefr: 'A2'
+            },
+            {
+                id: 13,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Ông Áp-ra-ham là tấm gương cho ta về một lòng tin mạnh mẽ vào Thiên Chúa qua việc:',
+                options: [
+                    'luôn mau mắn vâng theo lời Chúa dạy',
+                    'hoàn toàn để cho Thiên Chúa dẫn dắt cuộc sống',
+                    'luôn tin nơi lời Chúa hứa dù gặp khó khăn thử thách',
+                    'Câu a, b và c đúng'
+                ],
+                correct: 'Câu a, b và c đúng',
+                explanation: 'Áp-ra-ham là gương đức tin qua sự vâng lời và tin cậy (Bài 11).',
+                bloom: 'Applying',
+                cefr: 'B2'
+            },
+            {
+                id: 14,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Nơi ông Mô-sê ta học được:',
+                options: [
+                    'lòng yêu thương đồng bào',
+                    'tinh thần trách nhiệm',
+                    'sống gắn bó với Chúa qua đời sống cầu nguyện',
+                    'Câu a, b và c đúng'
+                ],
+                correct: 'Câu a, b và c đúng',
+                explanation: 'Mô-sê là gương yêu thương, trách nhiệm, và cầu nguyện (Bài 12).',
+                bloom: 'Applying',
+                cefr: 'B2'
+            },
+            {
+                id: 15,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Trong Giao ước tại núi Xi-nai, Thiên Chúa nhận dân Ít-ra-en làm dân riêng của Ngài và hứa sẽ che chở bảo vệ họ. Còn dân Ít-ra-en:',
+                options: [
+                    'nhận Thiên Chúa làm Chúa của mình',
+                    'chỉ thờ phượng một mình Thiên Chúa và tuân theo các điều Thiên Chúa phán dạy tóm lại trong 10 điều răn',
+                    'thờ phượng Thiên Chúa Ba Ngôi trong tinh thần và chân lý',
+                    'Câu a và b đúng'
+                ],
+                correct: 'Câu a và b đúng',
+                explanation: 'Giao ước Xi-nai yêu cầu dân Ít-ra-en thờ phượng và vâng lời Thiên Chúa (Bài 13).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 16,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Muốn trở thành con người có kỷ luật, ta cần:',
+                options: [
+                    'Tự nguyện sống có kỷ luật',
+                    'Giữ kỷ luật hằng ngày trong từng điều nhỏ',
+                    'Thường xuyên xét mình để nhận ra những sai sót mà sửa đổi',
+                    'Câu a, b và c đúng'
+                ],
+                correct: 'Câu a, b và c đúng',
+                explanation: 'Kỷ luật bao gồm tự nguyện, thực hành thường xuyên, và xét mình (Bài 21).',
+                bloom: 'Applying',
+                cefr: 'B2'
+            },
+            {
+                id: 17,
+                part: 'A',
+                type: 'fill_in_the_blank',
+                question: 'Hai trăm năm đầu tại Đất Hứa, dân Ít-ra-en sống theo từng chi tộc, dưới sự hướng dẫn trực tiếp của ...... Mỗi khi cần, Thiên Chúa lại cho xuất hiện một ….. để giúp họ chống ngoại xâm và để giúp họ sống trung thành với giao ước.',
+                options: [
+                    'các tư tế / ngôn sứ',
+                    'Thiên Chúa / thủ lãnh',
+                    'các ngôn sứ / vị vua',
+                    'Thiên Chúa / thượng tế'
+                ],
+                correct: 'Thiên Chúa / thủ lãnh',
+                explanation: 'Thiên Chúa hướng dẫn dân qua các thủ lãnh trong thời kỳ đầu (Bài 15).',
+                bloom: 'Recognizing',
+                cefr: 'A2'
+            },
+            {
+                id: 18,
+                part: 'A',
+                type: 'fill_in_the_blank',
+                question: 'Sau khi vua chết, đất nước Do Thái bị chia đôi. Miền Bắc là vương quốc Ít-ra-en, có thủ đô là …... Miền Nam là vương quốc Giu-đa, có thủ đô là …...',
+                options: [
+                    'Sa-lô-môn / Sa-ma-ri / Giê-ru-sa-lem',
+                    'Đa-vít / Ga-li-lê / Sa-ma-ri',
+                    'Gia-róp-am / Giê-ru-sa-lem / Bê-lem',
+                    'Sa-lô-môn / Đan / Bết Ên'
+                ],
+                correct: 'Sa-lô-môn / Sa-ma-ri / Giê-ru-sa-lem',
+                explanation: 'Sau Sa-lô-môn, vương quốc chia đôi với thủ đô Sa-ma-ri và Giê-ru-sa-lem (Bài 16).',
+                bloom: 'Recognizing',
+                cefr: 'A2'
+            },
+            {
+                id: 19,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Ngôn sứ là những người được Thiên Chúa kêu gọi và sai đi để nói Lời của Chúa cho Dân Ngài. Giáo huấn của các ngôn sứ được tóm lại trong những điểm sau đây:',
+                options: [
+                    'Phải thờ phượng một Thiên Chúa duy nhất và chân thật',
+                    'Sống đạo phải đi đôi với sống công bằng xã hội',
+                    'Đấng Cứu Thế sẽ đến giải thoát dân Ngài',
+                    'Câu a, b và c đúng'
+                ],
+                correct: 'Câu a, b và c đúng',
+                explanation: 'Giáo huấn ngôn sứ bao gồm thờ phượng, công bằng, và Đấng Cứu Thế (Bài 17).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 20,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Kinh nghiệm của dân Chúa nơi đất lưu đày, cho thấy ……. là cách Thiên Chúa dùng để giáo dục, thanh luyện ……. của chúng ta, giúp ta trưởng thành hơn trong tình yêu đối với Ngài.',
+                options: [
+                    'sự trừng phạt / lòng trung thành',
+                    'tình yêu / đức tin',
+                    'gian truân, hoạn nạn / đức tin',
+                    'lòng nhân từ / đời sống tội lỗi'
+                ],
+                correct: 'gian truân, hoạn nạn / đức tin',
+                explanation: 'Gian truân là cách Thiên Chúa thanh luyện đức tin (Bài 18).',
+                bloom: 'Reasoning',
+                cefr: 'B1'
+            },
+            {
+                id: 21,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Tự do là khả năng Thiên Chúa ban cho ta để ta ... các hành vi của mình, ... về cuộc đời mình một cách có ý thức, giúp ta phát triển và ... trong chân lý và sự thiện hảo.',
+                options: [
+                    'ý thức / chịu trách nhiệm / sống',
+                    'làm chủ / tự quyết định / trưởng thành',
+                    'chọn lựa / chịu trách nhiệm / hạnh phúc',
+                    'tìm hiểu / hoạch định / trưởng thành'
+                ],
+                correct: 'làm chủ / tự quyết định / trưởng thành',
+                explanation: 'Tự do giúp làm chủ hành vi và trưởng thành (Bài 21).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 22,
+                part: 'A',
+                type: 'true_false',
+                question: 'Về mặt luân lý, một hành vi là tốt khi cả 3 yếu tố: hành động, mục đích và các hoàn cảnh (hoặc các kết quả) đều tốt.',
+                options: ['Đúng', 'Sai'],
+                correct: 'Đúng',
+                explanation: 'Hành vi tốt cần cả ba yếu tố đều tốt (Bài 21).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 23,
+                part: 'A',
+                type: 'multiple_choice',
+                question: 'Để trở thành con người trưởng thành, sống có trách nhiệm, ta cần:',
+                options: [
+                    'Luôn cố gắng chu toàn bổn phận của mình',
+                    'Nếu có sai lỗi, thay vì đổ lỗi cho người khác thì khiêm tốn nhận lỗi',
+                    'Luôn nghĩ đến cùng đích của đời sống và những hệ quả do sự lựa chọn',
+                    'Câu a, b và c đúng'
+                ],
+                correct: 'Câu a, b và c đúng',
+                explanation: 'Trách nhiệm bao gồm chu toàn bổn phận, nhận lỗi, và nghĩ đến hệ quả (Bài 21).',
+                bloom: 'Applying',
+                cefr: 'B2'
+            },
+            {
+                id: 24,
+                part: 'A',
+                type: 'fill_in_the_blank',
+                question: 'Luật luân lý là những chỉ dẫn giúp ta .... và đạt tới ... mà Thiên Chúa muốn dành cho ta.',
+                options: [
+                    'sống đạo đức / sự bình an và hoan lạc',
+                    'nên thánh / con người hoàn thiện',
+                    'sống xứng đáng là người / hạnh phúc tối hậu',
+                    'tránh tội / sự trưởng thành về mọi mặt'
+                ],
+                correct: 'sống xứng đáng là người / hạnh phúc tối hậu',
+                explanation: 'Luật luân lý hướng dẫn sống xứng đáng và đạt hạnh phúc (Bài 22).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 25,
+                part: 'A',
+                type: 'bible_quotation',
+                question: 'Cầu nguyện là...... như đến nói chuyện với người cha hay người mẹ thân yêu của mình. Khi cầu nguyện, ta không chỉ nói cho Chúa nghe mà ta còn...',
+                options: [
+                    'đến gặp gỡ Chúa / thưa chuyện thân mật với Ngài / lắng nghe Chúa nói với ta',
+                    'đến nhà thờ / cùng nhau lần hạt / hát thánh ca',
+                    'đến trước tượng Chúa hoặc tượng Đức Mẹ / thầm thì đọc kinh / thinh lặng chiêm ngắm Chúa',
+                    'đến cầu xin Chúa / kể ra những điều mình muốn xin / đọc các kinh Hội Thánh dạy'
+                ],
+                correct: 'đến gặp gỡ Chúa / thưa chuyện thân mật với Ngài / lắng nghe Chúa nói với ta',
+                explanation: 'Cầu nguyện là gặp gỡ và lắng nghe Chúa (Bài 25).',
+                bloom: 'Applying',
+                cefr: 'B2'
+            },
+            // Part B: Reading Comprehension (Questions 26-33, fixed order)
+            {
+                id: 26,
+                part: 'B',
+                type: 'multiple_choice',
+                question: 'Đoạn Lời Chúa này trích từ sách nào?',
+                scripture: '17 ĐỨC CHÚA phán: “Ta có nên giấu Áp-ra-ham điều Ta sắp làm chăng? 18 Áp-ra-ham sẽ trở thành một dân tộc lớn mạnh và mọi dân tộc sẽ được chúc phúc nhờ nó. 19 Thật vậy, Ta đã chọn nó, để nó truyền cho con cái nó và gia tộc nó sau này phải giữ đường lối của ĐỨC CHÚA mà thực hiện điều công minh chính trực; như thế ĐỨC CHÚA sẽ làm cho Áp-ra-ham điều Người đã phán về nó.” (St 18,17-19)',
+                options: ['Sáng Thế', 'Xuất Hành', 'Lê-vi', 'Dân Số'],
+                correct: 'Sáng Thế',
+                explanation: 'Đoạn này trích từ sách Sáng Thế, chương 18 (Bài 1).',
+                bloom: 'Recognizing',
+                cefr: 'A2'
+            },
+            {
+                id: 27,
+                part: 'B',
+                type: 'multiple_choice',
+                question: 'Ai là nhân vật chính trong đoạn Lời Chúa này?',
+                scripture: '17 ĐỨC CHÚA phán: “Ta có nên giấu Áp-ra-ham điều Ta sắp làm chăng? 18 Áp-ra-ham sẽ trở thành một dân tộc lớn mạnh và mọi dân tộc sẽ được chúc phúc nhờ nó. 19 Thật vậy, Ta đã chọn nó, để nó truyền cho con cái nó và gia tộc nó sau này phải giữ đường lối của ĐỨC CHÚA mà thực hiện điều công minh chính trực; như thế ĐỨC CHÚA sẽ làm cho Áp-ra-ham điều Người đã phán về nó.” (St 18,17-19)',
+                options: ['Mô-sê', 'Áp-ra-ham', 'Đa-vít', 'Sa-mu-en'],
+                correct: 'Áp-ra-ham',
+                explanation: 'Áp-ra-ham là nhân vật chính được Thiên Chúa nhắc đến (Bài 1).',
+                bloom: 'Recognizing',
+                cefr: 'A2'
+            },
+            {
+                id: 28,
+                part: 'B',
+                type: 'multiple_choice',
+                question: 'Nội dung chính của đoạn Lời Chúa này là gì?',
+                scripture: '17 ĐỨC CHÚA phán: “Ta có nên giấu Áp-ra-ham điều Ta sắp làm chăng? 18 Áp-ra-ham sẽ trở thành một dân tộc lớn mạnh và mọi dân tộc sẽ được chúc phúc nhờ nó. 19 Thật vậy, Ta đã chọn nó, để nó truyền cho con cái nó và gia tộc nó sau này phải giữ đường lối của ĐỨC CHÚA mà thực hiện điều công minh chính trực; như thế ĐỨC CHÚA sẽ làm cho Áp-ra-ham điều Người đã phán về nó.” (St 18,17-19)',
+                options: [
+                    'Thiên Chúa chọn Áp-ra-ham để lập một dân tộc lớn mạnh và chúc phúc cho các dân tộc qua ông',
+                    'Thiên Chúa hướng dẫn Áp-ra-ham cách xây dựng đền thờ',
+                    'Thiên Chúa dạy Áp-ra-ham về luật Mười Điều Răn',
+                    'Thiên Chúa sai Áp-ra-ham đi giải phóng dân Ít-ra-en'
+                ],
+                correct: 'Thiên Chúa chọn Áp-ra-ham để lập một dân tộc lớn mạnh và chúc phúc cho các dân tộc qua ông',
+                explanation: 'Đoạn này nói về giao ước của Thiên Chúa với Áp-ra-ham (Bài 1).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 29,
+                part: 'B',
+                type: 'multiple_choice',
+                question: 'Đoạn Lời Chúa này cho thấy điều gì về Thiên Chúa và tình thương của Ngài?',
+                scripture: '17 ĐỨC CHÚA phán: “Ta có nên giấu Áp-ra-ham điều Ta sắp làm chăng? 18 Áp-ra-ham sẽ trở thành một dân tộc lớn mạnh và mọi dân tộc sẽ được chúc phúc nhờ nó. 19 Thật vậy, Ta đã chọn nó, để nó truyền cho con cái nó và gia tộc nó sau này phải giữ đường lối của ĐỨC CHÚA mà thực hiện điều công minh chính trực; như thế ĐỨC CHÚA sẽ làm cho Áp-ra-ham điều Người đã phán về nó.” (St 18,17-19)',
+                options: [
+                    'Thiên Chúa yêu thương và chọn Áp-ra-ham để thực hiện kế hoạch cứu độ',
+                    'Thiên Chúa nghiêm khắc trừng phạt những ai không vâng lời',
+                    'Thiên Chúa chỉ quan tâm đến dân Ít-ra-en',
+                    'Thiên Chúa không giao tiếp trực tiếp với con người'
+                ],
+                correct: 'Thiên Chúa yêu thương và chọn Áp-ra-ham để thực hiện kế hoạch cứu độ',
+                explanation: 'Đoạn này thể hiện tình thương và kế hoạch cứu độ của Thiên Chúa (Bài 1).',
+                bloom: 'Analyzing',
+                cefr: 'B1'
+            },
+            {
+                id: 30,
+                part: 'B',
+                type: 'multiple_choice',
+                question: 'Có gương tốt nào nên noi theo trong đoạn Lời Chúa này?',
+                scripture: '17 ĐỨC CHÚA phán: “Ta có nên giấu Áp-ra-ham điều Ta sắp làm chăng? 18 Áp-ra-ham sẽ trở thành một dân tộc lớn mạnh và mọi dân tộc sẽ được chúc phúc nhờ nó. 19 Thật vậy, Ta đã chọn nó, để nó truyền cho con cái nó và gia tộc nó sau này phải giữ đường lối của ĐỨC CHÚA mà thực hiện điều công minh chính trực; như thế ĐỨC CHÚA sẽ làm cho Áp-ra-ham điều Người đã phán về nó.” (St 18,17-19)',
+                options: [
+                    'Gương của Áp-ra-ham trong việc truyền dạy đường lối Chúa cho con cháu',
+                    'Gương của Áp-ra-ham trong việc xây dựng đền thờ',
+                    'Gương của Áp-ra-ham trong việc chiến đấu chống ngoại xâm',
+                    'Không có gương tốt nào được đề cập'
+                ],
+                correct: 'Gương của Áp-ra-ham trong việc truyền dạy đường lối Chúa cho con cháu',
+                explanation: 'Áp-ra-ham được chọn để truyền dạy đường lối Chúa (Bài 1).',
+                bloom: 'Applying',
+                cefr: 'B2'
+            },
+            {
+                id: 31,
+                part: 'B',
+                type: 'multiple_choice',
+                question: 'Qua đoạn Lời Chúa này, Thiên Chúa muốn dạy tôi điều gì hôm nay?',
+                scripture: '17 ĐỨC CHÚA phán: “Ta có nên giấu Áp-ra-ham điều Ta sắp làm chăng? 18 Áp-ra-ham sẽ trở thành một dân tộc lớn mạnh và mọi dân tộc sẽ được chúc phúc nhờ nó. 19 Thật vậy, Ta đã chọn nó, để nó truyền cho con cái nó và gia tộc nó sau này phải giữ đường lối của ĐỨC CHÚA mà thực hiện điều công minh chính trực; như thế ĐỨC CHÚA sẽ làm cho Áp-ra-ham điều Người đã phán về nó.” (St 18,17-19)',
+                options: [
+                    'Hãy tin cậy và vâng theo kế hoạch của Thiên Chúa trong đời sống',
+                    'Hãy xây dựng một cộng đoàn lớn mạnh bằng sức riêng',
+                    'Hãy tập trung vào việc tích lũy của cải vật chất',
+                    'Hãy tránh giao tiếp với những người không cùng niềm tin'
+                ],
+                correct: 'Hãy tin cậy và vâng theo kế hoạch của Thiên Chúa trong đời sống',
+                explanation: 'Đoạn này dạy về sự tin cậy vào Thiên Chúa (Bài 1).',
+                bloom: 'Applying',
+                cefr: 'B2'
+            },
+            {
+                id: 32,
+                part: 'B',
+                type: 'multiple_choice',
+                question: 'Hãy đặt một tựa đề ngắn gọn cho đoạn Lời Chúa này.',
+                scripture: '17 ĐỨC CHÚA phán: “Ta có nên giấu Áp-ra-ham điều Ta sắp làm chăng? 18 Áp-ra-ham sẽ trở thành một dân tộc lớn mạnh và mọi dân tộc sẽ được chúc phúc nhờ nó. 19 Thật vậy, Ta đã chọn nó, để nó truyền cho con cái nó và gia tộc nó sau này phải giữ đường lối của ĐỨC CHÚA mà thực hiện điều công minh chính trực; như thế ĐỨC CHÚA sẽ làm cho Áp-ra-ham điều Người đã phán về nó.” (St 18,17-19)',
+                options: [
+                    'Giao Ước Với Áp-ra-ham',
+                    'Sự Giải Phóng Dân Ít-ra-en',
+                    'Luật Mười Điều Răn',
+                    'Sự Sáng Tạo Thế Giới'
+                ],
+                correct: 'Giao Ước Với Áp-ra-ham',
+                explanation: 'Đoạn này nói về giao ước của Thiên Chúa với Áp-ra-ham (Bài 1).',
+                bloom: 'Analyzing',
+                cefr: 'B1'
+            },
+            {
+                id: 33,
+                part: 'B',
+                type: 'multiple_choice',
+                question: 'Ý nghĩa của chi tiết “mọi dân tộc sẽ được chúc phúc nhờ Áp-ra-ham” là gì?',
+                scripture: '17 ĐỨC CHÚA phán: “Ta có nên giấu Áp-ra-ham điều Ta sắp làm chăng? 18 Áp-ra-ham sẽ trở thành một dân tộc lớn mạnh và mọi dân tộc sẽ được chúc phúc nhờ nó. 19 Thật vậy, Ta đã chọn nó, để nó truyền cho con cái nó và gia tộc nó sau này phải giữ đường lối của ĐỨC CHÚA mà thực hiện điều công minh chính trực; như thế ĐỨC CHÚA sẽ làm cho Áp-ra-ham điều Người đã phán về nó.” (St 18,17-19)',
+                options: [
+                    'Áp-ra-ham là nguồn phước cho mọi dân qua dòng dõi dẫn đến Đấng Cứu Thế',
+                    'Áp-ra-ham sẽ ban của cải cho các dân tộc',
+                    'Áp-ra-ham sẽ dẫn dắt mọi dân tộc về Đất Hứa',
+                    'Áp-ra-ham sẽ dạy luật cho các dân tộc'
+                ],
+                correct: 'Áp-ra-ham là nguồn phước cho mọi dân qua dòng dõi dẫn đến Đấng Cứu Thế',
+                explanation: 'Phước lành qua Áp-ra-ham dẫn đến Chúa Giê-su (Bài 1).',
+                bloom: 'Analyzing',
+                cefr: 'B1'
+            },
+            // Part C: Synthesis and Gospel Leaven (Questions 34-40, fixed order)
+            {
+                id: 34,
+                part: 'C',
+                type: 'multiple_choice',
+                question: 'Để sống theo lương tâm và luật Chúa, ta cần:',
+                options: [
+                    'Năng cầu nguyện để được Chúa soi sáng và ban sức mạnh',
+                    'Biết nghĩ đến người khác: “Điều gì con không thích, thì cũng đừng làm cho ai cả”',
+                    'Yêu thương anh chị em thật lòng: “Đã yêu thương thì không làm hại người đồng loại”',
+                    'Câu a, b và c đúng'
+                ],
+                correct: 'Câu a, b và c đúng',
+                explanation: 'Sống theo lương tâm cần cầu nguyện, yêu thương, và nghĩ cho người khác (Bài 22).',
+                bloom: 'Applying',
+                cefr: 'B2'
+            },
+            {
+                id: 35,
+                part: 'C',
+                type: 'multiple_choice',
+                question: 'Tội trọng là ... những điều ... trong luật Thiên Chúa mà ta ... đó là tội.',
+                options: [
+                    'sơ ý phạm / cấm / nghĩ',
+                    'cố tình vi phạm / quan trọng / đã nhận thức rõ',
+                    'tình cờ phạm / quan trọng / có linh tính',
+                    'cố tình vi phạm / bị cấm / nghi ngờ'
+                ],
+                correct: 'cố tình vi phạm / quan trọng / đã nhận thức rõ',
+                explanation: 'Tội trọng là cố ý vi phạm điều quan trọng với nhận thức rõ (Bài 23).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 36,
+                part: 'C',
+                type: 'true_false',
+                question: 'Mỗi người phải luôn lắng nghe và làm theo tiếng nói lương tâm của mình.',
+                options: ['Đúng', 'Sai'],
+                correct: 'Đúng',
+                explanation: 'Lương tâm là tiếng Chúa hướng dẫn điều lành, tránh điều dữ (Bài 22).',
+                bloom: 'Understanding',
+                cefr: 'B1'
+            },
+            {
+                id: 37,
+                part: 'C',
+                type: 'multiple_choice',
+                question: 'Nếu bạn thấy một người bạn ăn cắp tiền của người khác, bạn sẽ làm gì để sống theo lời Chúa dạy?',
+                options: [
+                    'Im lặng vì không muốn mất bạn',
+                    'Nhẹ nhàng khuyên bạn trả lại và sửa sai',
+                    'Báo cáo ngay với thầy cô mà không nói với bạn',
+                    'Tham gia cùng bạn để chia sẻ số tiền'
+                ],
+                correct: 'Nhẹ nhàng khuyên bạn trả lại và sửa sai',
+                explanation: 'Sống theo Chúa là khuyên bảo và giúp người khác sửa sai (Bài 27).',
+                bloom: 'Situational',
+                cefr: 'B2'
+            },
+            {
+                id: 38,
+                part: 'C',
+                type: 'multiple_choice',
+                question: 'Thờ phượng và kính mến Thiên Chúa trên hết mọi sự có nghĩa là:',
+                options: [
+                    'Đặt Thiên Chúa trên hết mọi sự và ưu tiên Ngài trong mọi suy nghĩ, lời nói, hành động',
+                    'Chỉ cầu nguyện khi gặp khó khăn',
+                    'Tham gia mọi hoạt động xã hội để nổi bật',
+                    'Tập trung vào việc học tập và công việc'
+                ],
+                correct: 'Đặt Thiên Chúa trên hết mọi sự và ưu tiên Ngài trong mọi suy nghĩ, lời nói, hành động',
+                explanation: 'Thờ phượng là đặt Thiên Chúa lên trên hết (Bài 24).',
+                bloom: 'Applying',
+                cefr: 'B2'
+            },
+            {
+                id: 39,
+                part: 'C',
+                type: 'bible_citation',
+                question: 'Đoạn Kinh Thánh nào nói về việc yêu thương đồng loại như chính mình?',
+                options: [
+                    'Lv 19,11-18',
+                    'St 1,26-28',
+                    'Xh 19,3-8',
+                    'Ed 37,11-14'
+                ],
+                correct: 'Lv 19,11-18',
+                explanation: 'Lv 19,11-18 dạy yêu thương đồng loại như chính mình (Bài 27).',
+                bloom: 'Reasoning',
+                cefr: 'B1'
+            },
+            {
+                id: 40,
+                part: 'C',
+                type: 'multiple_choice',
+                question: 'Trong một tình huống bạn bè rủ rê nói dối để được lợi, bạn sẽ áp dụng bài học nào từ Kinh Thánh?',
+                options: [
+                    'Noi gương Áp-ra-ham, luôn tin cậy Chúa và sống ngay thẳng',
+                    'Noi gương Mô-sê, dẫn dắt bạn bè ra khỏi cám dỗ',
+                    'Noi gương Sa-mu-en, lắng nghe tiếng Chúa và từ chối nói dối',
+                    'Câu a và c đúng'
+                ],
+                correct: 'Câu a và c đúng',
+                explanation: 'Cả Áp-ra-ham và Sa-mu-en đều là gương sống ngay thẳng và lắng nghe Chúa (Bài 9, 11).',
+                bloom: 'Situational',
+                cefr: 'B2'
+            }
+        ];
+
+        // Shuffle questions for Part A
+        const partAQuestions = questionBank.filter(q => q.part === 'A').sort(() => Math.random() - 0.5);
+        const partBQuestions = questionBank.filter(q => q.part === 'B');
+        const partCQuestions = questionBank.filter(q => q.part === 'C');
+        const questions = [...partAQuestions, ...partBQuestions, ...partCQuestions];
+
+        let currentQuestionIndex = 0;
+        let userAnswers = new Array(questions.length).fill(null);
+        let timerInterval;
+        let timeLeft = 45 * 60; // 45 minutes in seconds
+
+        function startQuiz() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('questionScreen').style.display = 'block';
+            startTimer();
+            showQuestion();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                document.getElementById('timer').textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    submitQuiz();
+                }
+            }, 1000);
+        }
+
+        function showQuestion() {
+            const question = questions[currentQuestionIndex];
+            document.getElementById('questionText').innerHTML = `<strong>Câu ${currentQuestionIndex + 1}:</strong> ${question.question}`;
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+
+            // Show scripture for Part B
+            if (question.part === 'B') {
+                document.getElementById('scriptureText').style.display = 'block';
+                document.getElementById('scriptureText').innerHTML = `<strong>Đoạn Lời Chúa số 1, Bài 1:</strong> ${question.scripture}`;
+            } else {
+                document.getElementById('scriptureText').style.display = 'none';
+            }
+
+            // Display options
+            question.options.forEach((option, index) => {
+                const label = document.createElement('label');
+                label.innerHTML = `
+                    <input type="radio" name="option" value="${option}" ${userAnswers[currentQuestionIndex] === option ? 'checked' : ''}>
+                    ${option}
+                `;
+                optionsDiv.appendChild(label);
+            });
+
+            // Update navigation buttons
+            document.getElementById('prevBtn').disabled = currentQuestionIndex === 0;
+            if (currentQuestionIndex === questions.length - 1) {
+                document.getElementById('nextBtn').style.display = 'none';
+                document.getElementById('submitBtn').style.display = 'inline';
+            } else {
+                document.getElementById('nextBtn').style.display = 'inline';
+                document.getElementById('submitBtn').style.display = 'none';
+            }
+        }
+
+        function saveAnswer() {
+            const selectedOption = document.querySelector('input[name="option"]:checked');
+            userAnswers[currentQuestionIndex] = selectedOption ? selectedOption.value : null;
+        }
+
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                saveAnswer();
+                currentQuestionIndex--;
+                showQuestion();
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < questions.length - 1) {
+                saveAnswer();
+                currentQuestionIndex++;
+                showQuestion();
+            }
+        }
+
+        function submitQuiz() {
+            saveAnswer();
+            clearInterval(timerInterval);
+            document.getElementById('questionScreen').style.display = 'none';
+            document.getElementById('resultScreen').style.display = 'block';
+
+            let score = 0;
+            const resultsTable = document.getElementById('resultsTable');
+            resultsTable.innerHTML = '';
+
+            questions.forEach((question, index) => {
+                const userAnswer = userAnswers[index];
+                const isCorrect = userAnswer === question.correct;
+                if (isCorrect) score++;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${question.question}</td>
+                    <td class="${userAnswer ? (isCorrect ? 'correct' : 'incorrect') : 'not-answered'}">
+                        ${userAnswer || 'Không chọn'}
+                    </td>
+                    <td>${question.correct}</td>
+                    <td>${question.explanation}</td>
+                `;
+                resultsTable.appendChild(row);
+            });
+
+            document.getElementById('score').textContent = `Điểm: ${score}/40`;
+        }
+
+        function backToStart() {
+            document.getElementById('resultScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'block';
+            currentQuestionIndex = 0;
+            userAnswers = new Array(questions.length).fill(null);
+            timeLeft = 45 * 60;
+            document.getElementById('timer').textContent = '45:00';
+        }
+
+        // Deployment Instructions:
+        /*
+            To deploy on GitHub Pages:
+            1. Create a GitHub repository.
+            2. Upload quiz1.html to the repository.
+            3. Go to repository Settings > Pages.
+            4. Set Source to "Deploy from a branch" and select "main" branch.
+            5. Access the quiz at: https://username.github.io/repository-name/quiz1.html
+
+            To deploy on Netlify:
+            1. Sign up at netlify.com.
+            2. Drag and drop quiz1.html into the Netlify dashboard or link your GitHub repository.
+            3. Netlify will provide a URL, e.g., https://your-site-name.netlify.app/quiz1.html
+        */
+    </script>
+</body>
+</html>
