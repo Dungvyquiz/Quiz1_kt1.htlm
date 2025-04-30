@@ -1,6 +1,6 @@
 LỚP KINH THÁNH 1 
 ĐỀ SỐ: 1
-Tổng số câu 40, trong đó có 8 câu hỏi lấy từ câu hỏi mẫu file word bao gồm:
+Tổng số câu 40, bao gồm:
 -**Phân bổ tỷ lệ và số lượng cho câu hỏi theo Bloom và CERF**:
 Nhận biết 8 (A2):
 Thông hiểu: 8 (B1)
